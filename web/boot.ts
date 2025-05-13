@@ -4,6 +4,24 @@ import { Client, type ClientConfig } from "./client.ts";
 safeRun(async () => {
   // First we fetch the client config from the server (or cached via service worker)
   let clientConfig: ClientConfig | undefined;
+
+  // Read any previous client config from localStorage to be used as default if
+  // network/server is down. (The service worker is not started yet so is
+  // unable to read from cache)
+  if (localStorage) {
+    try {
+      const cfvalue = localStorage.getItem(
+        `silverbullet.${document.baseURI}.config`,
+      );
+      if (cfvalue) {
+        clientConfig = JSON.parse(cfvalue);
+        console.log("Read client config from localStorage");
+      }
+    } catch (e: any) {
+      console.log("Failed to parse client config from localStorage", e);
+    }
+  }
+
   try {
     const configResponse = await fetch("/.config", {
       // We don't want to follow redirects, we want to get the redirect header in case of auth issues
@@ -21,12 +39,20 @@ safeRun(async () => {
       return;
     }
     clientConfig = await configResponse.json();
+    if (localStorage) {
+      localStorage.setItem(
+        `silverbullet.${document.baseURI}.config`,
+        JSON.stringify(clientConfig),
+      );
+    }
   } catch (e: any) {
     console.error("Failed to fetch client config", e.message);
-    alert(
-      "Could not fetch configuration from server. Make sure you have an internet connection.",
-    );
-    return;
+    if (!clientConfig) {
+      alert(
+        "Could not fetch configuration from server. Make sure you have an internet connection.",
+      );
+      return;
+    }
   }
   console.log("Client config", clientConfig);
   console.log("Booting SilverBullet client");
