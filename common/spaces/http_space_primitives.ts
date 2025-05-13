@@ -39,7 +39,11 @@ export class HttpSpacePrimitives implements SpacePrimitives {
       options.signal = AbortSignal.timeout(fetchTimeout);
       options.redirect = "manual";
       const result = await fetch(url, options);
-      if (result.status === 503) {
+      //NOTE: Adding `|| result.status === 403` as a bit of a hack for our specific situation
+      //      where we retriction the traffic to local network at the Apache level.
+      //      If traffic comes from the internet, 403 will be returned. We want this to be
+      //      interpreted as server being not available and NOT a problem with Silverbullet auth (which we don't use).
+      if (result.status === 503 || result.status === 403) {
         throw new Error("Offline");
       }
       const redirectHeader = result.headers.get("location");
